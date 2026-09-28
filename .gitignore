@@ -1,6 +1,8 @@
 inputs/
 results/
 outreach/
+outreach-*/
+results-*/
 sheets-review/
 __pycache__/
 .venv/

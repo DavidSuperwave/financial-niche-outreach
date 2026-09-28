@@ -40,6 +40,34 @@ class OutreachTests(unittest.TestCase):
             self.assertIn(value['literal'], 'Our Payment Gateway serves software platforms.')
             self.assertNotEqual(value['term'], 'private equity')
 
+    def test_business_sentence_available_without_glossary_match(self):
+        text = 'Embedded AI workflows, tools and insights for homebuyers & loan officers.'
+        found = o.focus_candidates({'E01': {'url': 'https://example.com', 'text': text}})
+        self.assertTrue(any(v['literal'] == text and v.get('kind') == 'sentence' for v in found.values()))
+        self.assertTrue(all(v['literal'] in text for v in found.values()))
+
+    def test_selection_payload_preserves_candidates_without_duplication(self):
+        text = 'Embedded AI workflows, tools and insights for homebuyers and loan officers.'
+        state = {'offers': o.catalog(), 'focus_candidates': {
+            'F01': {'term': text, 'literal': text, 'context': text, 'excerpt_id': 'E01'}},
+            'company': {'name': 'Example'}, 'job_title': 'CEO', 'website_excerpts': {}, 'rules': o.RULES}
+        request = o.selection_request(state, 'fixture')
+        self.assertEqual(request['state']['focus_candidates']['F01']['text'], text)
+        self.assertEqual(set(request['questions']['focus']['criteria']), {'F01', 'NONE'})
+        self.assertNotIn(text, request['questions']['focus']['criteria']['F01'])
+        self.assertEqual(request['state']['offers']['offer_02']['pitch'], state['offers']['offer_02']['pitch'])
+
+    def test_expanded_offers_require_explicit_source_scope(self):
+        from outreach_options import expand_catalog
+        with self.assertRaises(ValueError):
+            expand_catalog(o.catalog(), o.s.DEFAULT_MATRIX)
+        with o.s.DEFAULT_MATRIX.open('a', newline='') as file:
+            csv.writer(file).writerow(['A B2B referral, partnership, or software-sales offer.'])
+        expanded = expand_catalog(o.catalog(), o.s.DEFAULT_MATRIX)
+        self.assertEqual(len(expanded), 27)
+        self.assertTrue(expanded['adapt_mortgage_software']['adaptation'])
+        self.assertIn('B2B', expanded['adapt_mortgage_software']['source_offer_text'])
+
     def test_copy_is_opener_then_pitch_and_no_dash_punctuation(self):
         draft = o.compose('Ana', 'A-B', 'asset-based lending', 'sales', o.catalog()['lane_specialty_finance'])
         self.assertTrue(draft['outreach_copy'].startswith('Ana,'))
@@ -57,6 +85,7 @@ class OutreachTests(unittest.TestCase):
             result = o.draft_one(row, o.catalog(), SimpleNamespace(model='fixture', out=Path('.')))
         self.assertEqual(result['outreach_status'], 'HOLD')
         self.assertNotIn('outreach_copy', result)
+
 
     def test_no_supported_offer_never_gets_copy(self):
         state = {'focus_candidates': {'F01': {'term': 'wealth management'}}}
@@ -81,6 +110,8 @@ class OutreachTests(unittest.TestCase):
             result = o.draft_one(row, offers, SimpleNamespace(model='fixture', out=Path('.')))
         self.assertEqual(result['outreach_status'], 'HOLD')
         self.assertNotIn('outreach_copy', result)
+        self.assertTrue(result['outreach_candidate_copy'])
+        self.assertEqual(result['outreach_qa_business_fit'], .3)
 
     def test_approved_questions_and_scoped_review_context(self):
         import json
@@ -92,6 +123,25 @@ class OutreachTests(unittest.TestCase):
         self.assertNotIn('focus_candidates', request['state'])
         for key, text in revision['proposed_questions'].items():
             self.assertEqual(request['questions'][key]['instructions'], 'Apply `rules`. ' + text)
+
+    def test_ambiguous_offer_stays_held_even_if_copy_checks_pass(self):
+        offers = o.catalog()
+        state = {'company': {'name': 'Example', 'domain': 'example.com'}, 'job_title': 'CEO', 'rules': o.RULES,
+                 'offers': offers, 'focus_candidates': {'F01': {'term': 'embedded payments', 'literal': 'embedded payments',
+                    'url': 'https://example.com', 'excerpt_id': 'E01'}},
+                 'website_excerpts': {'E01': {'url': 'https://example.com', 'text': 'We provide embedded payments.'}}}
+        selection = {'answers': {'offer': {'choice': 'offer_02', 'confidence': .4,
+                     'probabilities': {'offer_02': .6, 'NO_SUPPORTED_OFFER': .4}},
+                     'focus': {'choice': 'F01'}, 'role': {'choice': 'executive'}}}
+        qa = {'answers': {key: {'noul': .99} for key in o.QA_MINIMUMS}}
+        with patch('outreach.state_for', return_value=state), patch('outreach.cached_ask',
+                side_effect=[(selection, Path('selection.json')), (qa, Path('qa.json'))]):
+            result = o.draft_one({'screen_source_row': '2', 'First Name': 'Ana', 'company_name': 'Example'},
+                                 offers, SimpleNamespace(model='fixture', out=Path('.')))
+        self.assertEqual(result['outreach_status'], 'HOLD')
+        self.assertIn('offer_match', result['outreach_reason'])
+        self.assertNotIn('outreach_copy', result)
+        self.assertTrue(result['outreach_candidate_copy'])
 
 
 if __name__ == '__main__':

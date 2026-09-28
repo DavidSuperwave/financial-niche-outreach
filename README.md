@@ -48,6 +48,19 @@ python3 outreach.py --workers 16
 python3 audit_outreach.py
 ```
 
+For broader drafting coverage, enable the evidence-scoped dashboard adaptations:
+
+```sh
+python3 outreach.py --expand-offers --workers 16 --out outreach-v2
+python3 audit_outreach.py --out outreach-v2
+```
+
+This adds eight proposed applications of the dashboard's B2B outreach motions. They cover mortgage software, brokerage APIs, financial software, business payments, professional referrals, employer benefits, commercial insurance, and business-owner origination. They are labeled `Dashboard adaptation`, not presented as named offers or proven sender capabilities. Evidence must establish the applicable business or partner channel; consumer financial services alone do not establish a B2B referral model.
+
+Openers can now use a literal business-description sentence from the site as well as glossary terms. The model selects the source span; code retains its URL and excerpt. Copy formatting normalizes whitespace and dash punctuation.
+
+`outreach_draft_candidates.csv` includes composed candidates even when offer confidence or QA rejects them. A `HOLD` candidate is **not approved**: check `outreach_reason` and the per-check probabilities before editing or using it. Candidate text lives in separate `outreach_candidate_*` fields; strict `outreach_copy` stays blank for holds. `outreach_drafts.csv` still contains only drafts meeting every unchanged numeric gate. No-match and wrong-role exits can still have no candidate.
+
 No `--limit` means process the full eligible pool. For an initial sample, use `--limit 30 --sample` on either main script. A limited run overwrites aggregate exports with explicit `NOT_PROCESSED` rows; run again without the limit to restore complete exports. Run only one process per output directory.
 
 The default locations above work for both stages and audits. Screening also supports `--leads`, `--matrix`, and `--out`, but outreach currently expects the default retained inputs and `results/` directory. Keep those defaults for the end-to-end workflow. `python3 SCRIPT.py --help` lists options for each main script.
@@ -60,7 +73,8 @@ The default locations above work for both stages and audits. Screening also supp
 | `results/out_of_niche.csv` | Clear outsiders under the configured exclusion rules |
 | `results/needs_review.csv` | Unclear, blocked, or unresolved companies |
 | `results/all_leads_screened.csv` | Original rows and screening fields |
-| `outreach/outreach_drafts.csv` | Review drafts with separate opener, pitch, CTA, and combined copy |
+| `outreach/outreach_drafts.csv` | Review drafts meeting the configured model checks |
+| `outreach/outreach_draft_candidates.csv` | All composed candidates, including clearly labeled failed QA cases |
 | `outreach/outreach_holds.csv` | Held rows and reasons, including ineligible screening rows |
 | `outreach/all_leads_with_outreach.csv` | Full original list with both stages attached |
 | `outreach/draft_summary.json` | Eligible-pool counts, hold reasons, and configured thresholds |
