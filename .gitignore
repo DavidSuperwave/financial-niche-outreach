@@ -1,0 +1,14 @@
+inputs/
+results/
+outreach/
+sheets-review/
+__pycache__/
+.venv/
+.env
+.env.*
+*.log
+*.csv
+*.xlsx
+*.pem
+*.key
+.DS_Store

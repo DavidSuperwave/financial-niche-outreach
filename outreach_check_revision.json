@@ -1,0 +1,6 @@
+{
+  "proposed_questions": {
+    "business_fit": "Does the company's own product or service, as explicitly described in website_excerpts, match the prospect business type defined in selected_offer.prospect_business? Judge business-model compatibility only. Do not predict whether outbound will work, whether they want the service, or whether it will generate results. Reject supplier/customer reversal or a different company type.",
+    "opportunity_fit": "Are the buyer or partner type and trigger proposed in draft consistent with the company's documented products/services and the selected dashboard offer? Judge compatibility of the proposed audience and trigger, not whether specific live prospects exist or will convert. Reject audiences for a different business model."
+  }
+}
