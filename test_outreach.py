@@ -143,6 +143,22 @@ class OutreachTests(unittest.TestCase):
         self.assertNotIn('outreach_copy', result)
         self.assertTrue(result['outreach_candidate_copy'])
 
+    def test_concurrent_identical_requests_share_one_saved_response(self):
+        import concurrent.futures
+        import os
+        import time
+        request = {'model': 'fixture', 'state': {}, 'questions': {'check': {'type': 'noul', 'instructions': 'Fixture?'}}}
+        response = {'model': 'fixture', 'answers': {'check': {'type': 'noul', 'noul': .95}}}
+        def provider(*args):
+            time.sleep(.02)
+            return response
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {'TYPESAFE_API_KEY': 'fixture-only'}), \
+                patch('outreach.s.ask', side_effect=provider) as ask:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+                results = list(pool.map(lambda _: o.cached_ask(request, Path(folder)), range(8)))
+            self.assertEqual(ask.call_count, 1)
+            self.assertTrue(all(result[0] == response for result in results))
+
 
 if __name__ == '__main__':
     unittest.main()

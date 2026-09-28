@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import random
 import re
+import threading
 
 import screen as s
 
@@ -242,15 +243,21 @@ def qa_request(state, offer_id, focus_id, draft, model):
 QA_MINIMUMS = {"business_fit": .85, "role_fit": .8, "opener_grounded": .9,
                "opportunity_fit": .85, "claims_supported": .9, "readable": .8}
 
+_LOCKS_GUARD = threading.Lock()
+_REQUEST_LOCKS = {}
+
 
 def cached_ask(request, directory):
     path = directory / (s.digest(request) + ".json")
-    if path.exists():
-        result = json.loads(path.read_text())["response"]
-        return s.validate_response(result, request), path
-    response = s.ask(request, os.environ["TYPESAFE_API_KEY"])
-    s.save(path, {"request": request, "response": response, "created_at": s.now()})
-    return response, path
+    with _LOCKS_GUARD:
+        lock = _REQUEST_LOCKS.setdefault(str(path.resolve()), threading.Lock())
+    with lock:
+        if path.exists():
+            result = json.loads(path.read_text())["response"]
+            return s.validate_response(result, request), path
+        response = s.ask(request, os.environ["TYPESAFE_API_KEY"])
+        s.save(path, {"request": request, "response": response, "created_at": s.now()})
+        return response, path
 
 
 def draft_one(row, offers, args):
